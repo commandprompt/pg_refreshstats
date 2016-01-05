@@ -21,7 +21,12 @@
 #    * EXTENSIVE (all user tables in the database or schema will be refreshed)
 #    * SMART (only tables that need to be refreshed will be refreshed)
 # 
-# Example Call: ./pg_refreshstats.sh -s localhost -d test -m public -p 5433 -t extensive -u postgres -l 20 -w 1000000 -c -r -v
+# Examples:
+# -- vacuum analyze for all user tables in the database
+# ./pg_refreshstats.sh -s localhost -d test -p 5433 -t extensive -u postgres -l 20 -w 1000000 -c -v
+# 
+# -- smart analyze for all user tables in specific schema
+# ./pg_refreshstats.sh -s localhost -d test -m public -p 5433 -t smart -u postgres -l 20 -w 1000000 -v
 # 
 # Assumptions:
 # 1. db user defaults to postgres if not provided as parameter.
