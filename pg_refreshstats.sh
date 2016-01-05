@@ -8,11 +8,10 @@
 # This script executes vacuum analyze or just analyze commands based on input parameters
 #
 # Assumptions:
-#  1. db user is assumed to be postgres.
+#  1. db user is assumed to be postgres, unless overriden by parameter.
 #  2. Password must be in local .pgpass file
 #  3. psql is in user's path
-#  4. Only tables with less than 10 million rows will be analyzed. Others will be displayed at program end for manual intervention.
-#
+#  
 # Inputs: 
 # -h <hostname or IP address> -d <database> -n <schema, optional> -p <PORT> -t <type> -u <db user, optional> 
 # -l <load threshold, optional> -w <max rows, optional> -c [vacuum analyze, optional] -r [dry run, optional] -v [verbose output, optional]
