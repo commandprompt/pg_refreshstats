@@ -178,9 +178,9 @@ else
 fi
 
 if [ -z $SCHEMA ]; then
-    SCHEMA_CLAUSE=" and n.nspname = '${SCHEMA}' "
-else
     SCHEMA_CLAUSE=" "
+else
+    SCHEMA_CLAUSE=" and n.nspname = '${SCHEMA}' "
 fi
 
 #####################
@@ -210,6 +210,7 @@ fi
 
 # Show user what tables will not be refreshed because their size exceeds Max rows.
 SQL="select n.nspname || '.' || c.relname from pg_namespace n, pg_class c, pg_tables t, pg_stat_user_tables u where t.schemaname = n.nspname and t.tablename = c.relname and c.relname = u.relname ${SCHEMA_CLAUSE} and n.nspname not in ('information_schema','pg_catalog') and c.reltuples > ${MAXROWS} order by n.nspname, c.relname"        
+
 RC1=`psql -h ${SERVER} -U ${USER} -p ${PORT} -d ${DATABASE} -t -c "${SQL}" > ${WORKFILE_DEFERRED}`
 RC2=$?
 if [[ ${RC2} -ne 0 ]] ; then
@@ -229,7 +230,11 @@ if [ "$TYPEU" = "EXTENSIVE" ]; then
         echo "INFO  `date`: *** Extensive schema refresh in progress...."    
     fi
 
-    SQL="select '${STATM} VERBOSE ' || n.nspname || '.' || c.relname || ';' as ddl from pg_namespace n, pg_class c, pg_tables t, pg_stat_user_tables u where t.schemaname = n.nspname and t.tablename = c.relname and c.relname = u.relname ${SCHEMA_CLAUSE} and n.nspname not in ('information_schema','pg_catalog') and c.reltuples between 1 and ${MAXROWS} order by n.nspname, c.relname"        
+    SQL="select '${STATM} VERBOSE ' || n.nspname || '.' || c.relname || ';' as ddl from pg_namespace n, pg_class c, pg_tables t, pg_stat_user_tables u where t.schemaname = n.nspname and t.tablename = c.relname and c.relname = u.relname ${SCHEMA_CLAUSE} and n.nspname not in ('information_schema','pg_catalog') and c.reltuples between 0 and ${MAXROWS} order by n.nspname, c.relname"  
+    if [[ $VERBOSE -eq 1 ]]; then
+        echo "DEBUG `date`: *** SQL--> $SQL"
+    fi
+    
     RC1=`psql -h ${SERVER} -U ${USER} -p ${PORT} -d ${DATABASE} -t -c "${SQL}" > ${WORKFILE}`
     RC2=$?
     if [[ ${RC2} -ne 0 ]] ; then
@@ -264,7 +269,10 @@ elif [ "$TYPEU" = "SMART" ]; then
         echo "INFO  `date`: *** Smart schema refresh in progress..."                
     fi
     
-    SQL="select '${STATM} ' || n.nspname || '.' || c.relname || ';' as ddl from pg_namespace n, pg_class c, pg_tables t, pg_stat_user_tables u where t.schemaname = n.nspname and t.tablename = c.relname and c.relname = u.relname ${SCHEMA_CLAUSE} and n.nspname not in ('information_schema','pg_catalog') and (((c.reltuples between 1 and ${MAXROWS} and round((u.n_live_tup / c.reltuples) * 100) < 50)) OR ((last_analyze is null and last_autoanalyze is null) or (now()::date  - last_analyze::date > 30 OR now()::date - last_autoanalyze::date > 30))) order by n.nspname, c.relname"
+    SQL="select '${STATM} ' || n.nspname || '.' || c.relname || ';' as ddl from pg_namespace n, pg_class c, pg_tables t, pg_stat_user_tables u where t.schemaname = n.nspname and t.tablename = c.relname and c.relname = u.relname ${SCHEMA_CLAUSE} and n.nspname not in ('information_schema','pg_catalog') and (((c.reltuples between 0 and ${MAXROWS} and round((u.n_live_tup / c.reltuples) * 100) < 50)) OR ((last_analyze is null and last_autoanalyze is null) or (now()::date  - last_analyze::date > 30 OR now()::date - last_autoanalyze::date > 30))) order by n.nspname, c.relname"
+    if [[ $VERBOSE -eq 1 ]]; then
+        echo "DEBUG `date`: *** SQL--> $SQL"
+    fi
     RC1=`psql -h ${SERVER} -U ${USER} -p ${PORT} -d ${DATABASE} -t -c "${SQL}" > ${WORKFILE}`
     RC2=$?
     if [[ ${RC2} -ne 0 ]] ; then
