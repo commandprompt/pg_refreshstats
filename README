@@ -1,7 +1,7 @@
 This script executes vacuum analyze or just analyze commands based on input parameters
 
 Inputs: 
--s <hostname or IP address> -d <database> -m <schema, optional> -p <PORT> -t <type> -u <db user, optional> 
+-h <hostname or IP address> -d <database> -n <schema, optional> -p <PORT> -t <type> -u <db user, optional> 
 -l <load threshold, optional> -w <max rows, optional> -c [vacuum analyze, optional] -r [dry run, optional] -v [verbose output, optional]
 
 TYPE values:
@@ -10,10 +10,10 @@ TYPE values:
 
 Examples:
 -- vacuum analyze for all user tables in the database
-./pg_refreshstats.sh -s localhost -d test -p 5433 -t extensive -u postgres -l 20 -w 1000000 -c -v
+./pg_refreshstats.sh -h localhost -d test -p 5433 -t extensive -u postgres -l 20 -w 1000000 -c -v
 
 -- smart analyze for all user tables in specific schema
-./pg_refreshstats.sh -s localhost -d test -m public -p 5433 -t smart -u postgres -l 20 -w 1000000 -v
+./pg_refreshstats.sh -h localhost -d test -n public -p 5433 -t smart -u postgres -l 20 -w 1000000 -v
 
 Assumptions:
 1. db user defaults to postgres if not provided as parameter.
