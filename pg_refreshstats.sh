@@ -28,7 +28,8 @@
 # 3. Password must be in local .pgpass file
 # 4. psql must be in the user's path
 # 5. action defaults to analyze unless option, -c, is specified
-# 
+# 6. Load detection assumes that you are running this script from the database host.
+#
 # SMART TYPE dictates a filter algorithm to determine what tables will qualify for the stats refresh.
 # 1. Refresh tables with no recent analyze or autovacuum_analyze in the last 30 days.
 # 2. Refresh tables where pg_stat_user_tables.n_live_tup is less than half of pg_class.reltuples
