@@ -14,7 +14,7 @@
 #  4. Only tables with less than 10 million rows will be analyzed. Others will be displayed at program end for manual intervention.
 #
 # Inputs: 
-# -s <hostname or IP address> -d <database> -m <schema, optional> -p <PORT> -t <type> -u <db user, optional> 
+# -h <hostname or IP address> -d <database> -n <schema, optional> -p <PORT> -t <type> -u <db user, optional> 
 # -l <load threshold, optional> -w <max rows, optional> -c [vacuum analyze, optional] -r [dry run, optional] -v [verbose output, optional]
 # 
 # TYPE values:
@@ -26,7 +26,7 @@
 # ./pg_refreshstats.sh -s localhost -d test -p 5433 -t extensive -u postgres -l 20 -w 1000000 -c -v
 # 
 # -- smart analyze for all user tables in specific schema
-# ./pg_refreshstats.sh -s localhost -d test -m public -p 5433 -t smart -u postgres -l 20 -w 1000000 -v
+# ./pg_refreshstats.sh -s localhost -d test -n public -p 5433 -t smart -u postgres -l 20 -w 1000000 -v
 # 
 # Assumptions:
 # 1. db user defaults to postgres if not provided as parameter.
@@ -63,18 +63,17 @@ usage: $0 options
 This script refreshes user table statistics using vacuum analyze or just plain analyze.
 
 OPTIONS:
-   -h      Show this message
-   -s      server name or Ip address
+   -h      server name or Ip address
    -d      database name
-   -m      schema name (optional, excluded implies database-wide refresh)
+   -n      schema name (optional, excluded implies database-wide refresh)
    -p      port
    -u      db user (default, postgres)
    -t      type  (EXTENSIVE or SMART)
    -l      load threshold (optional) 
-   -w      max rows
-   -c      vacuum analyze, instead of just analyze
-   -r      dry run
-   -v      Verbose
+   -w      max rows, defaults to 10 million (optional)
+   -c      vacuum analyze, instead of default, analyze (optional)
+   -r      dry run (optional)
+   -v      Verbose (optional)
 EOF
 }
 
@@ -92,20 +91,17 @@ DRYRUN=0
 LOWLOAD=-1
 MAXROWS=10000000
 VERBOSE=0
-while getopts "hs:d:m:p:t:l:w:u:crv" OPTION
+#while getopts "hs:d:n:p:t:l:w:u:crv" OPTION
+while getopts "h:d:n:p:t:l:w:u:crv" OPTION
 do
      case $OPTION in
          h)
-             usage
-             exit 1
-             ;;
-         s)
              SERVER=$OPTARG
              ;;             
          d)
              DATABASE=$OPTARG
              ;;
-         m)
+         n)
              SCHEMA=$OPTARG
              ;;
          p)
@@ -134,7 +130,7 @@ do
              ;;
          ?)
              usage
-             exit
+             exit 1
              ;;
      esac
 done
