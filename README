@@ -1,8 +1,7 @@
 This script executes vacuum analyze or just analyze commands based on input parameters
 
 Inputs: 
--s <hostname or IP address> -d <database> -m <schema, optional> -p <PORT> -t <type> -u <db user, optional> -l <load threshold, optional> 
--w <max rows, optional> -c [vacuum analyze, optional] -r [dry run, optional] -v [verbose output, optional]
+-s <hostname or IP address> -d <database> -m <schema, optional> -p <PORT> -t <type> -u <db user, optional> -l <load threshold, optional> -w <max rows, optional> -c [vacuum analyze, optional] -r [dry run, optional] -v [verbose output, optional]
 
 TYPE values:
    * EXTENSIVE (all user tables in the database or schema will be refreshed)
