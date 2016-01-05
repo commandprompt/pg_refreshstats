@@ -23,10 +23,10 @@
 # 
 # Examples:
 # -- vacuum analyze for all user tables in the database
-# ./pg_refreshstats.sh -s localhost -d test -p 5433 -t extensive -u postgres -l 20 -w 1000000 -c -v
+# ./pg_refreshstats.sh -h localhost -d test -p 5433 -t extensive -u postgres -l 20 -w 1000000 -c -v
 # 
 # -- smart analyze for all user tables in specific schema
-# ./pg_refreshstats.sh -s localhost -d test -n public -p 5433 -t smart -u postgres -l 20 -w 1000000 -v
+# ./pg_refreshstats.sh -h localhost -d test -n public -p 5433 -t smart -u postgres -l 20 -w 1000000 -v
 # 
 # Assumptions:
 # 1. db user defaults to postgres if not provided as parameter.
