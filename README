@@ -20,7 +20,7 @@ Assumptions:
 2. Max rows defaults to 10 million if not provided as parameter 
 3. Password must be in local .pgpass file or trust/peer client authentication.
 4. psql must be in the user's path
-5. action defaults to analyze unless option, -c, is specified, in which case vacuum analyze statements would be executed.
+5. action defaults to analyze unless option, -c, is specified, indicating to use vacuum analyze instead.
 6. Load detection assumes that you are running this script from the database host.
 
 SMART TYPE dictates a filter algorithm to determine what tables will qualify for the stats refresh.
