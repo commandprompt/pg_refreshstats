@@ -1,0 +1,24 @@
+This script executes vacuum analyze or just analyze commands based on input parameters
+
+Inputs: 
+-s <hostname or IP address> -d <database> -m <schema, optional> -p <PORT> -t <type> -u <db user, optional> -l <load threshold, optional> 
+-w <max rows, optional> -c [vacuum analyze, optional] -r [dry run, optional] -v [verbose output, optional]
+
+TYPE values:
+   * EXTENSIVE (all user tables in the database or schema will be refreshed)
+   * SMART (only tables that need to be refreshed will be refreshed)
+
+Example Call: ./pg_refreshstats.sh -s localhost -d test -m public -p 5433 -t extensive -u postgres -l 20 -w 1000000 -c -r -v
+
+Assumptions:
+1. db user defaults to postgres if not provided as parameter.
+2. Max rows defaults to 10 million if not provided as parameter 
+3. Password must be in local .pgpass file
+4. psql must be in the user's path
+5. action defaults to analyze unless option, -c, is specified
+
+SMART TYPE dictates a filter algorithm to determine what tables will qualify for the stats refresh.
+1. Refresh tables with no recent analyze or autovacuum_analyze in the last 30 days.
+2. Refresh tables where pg_stat_user_tables.n_live_tup is less than half of pg_class.reltuples
+
+Tables with over MAXROWS rows are not refreshed and are output in file, /tmp/PROGRAMPID_refreshstats_deferred.sql
