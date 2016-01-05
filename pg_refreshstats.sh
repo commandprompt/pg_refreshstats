@@ -44,6 +44,7 @@
 # 2016-01-05 Enhancements/fixes Modifier:   Michael Vitale
 #########################################################################################################
 #PGBIN="/usr/pgsql-9.4/bin"
+VERSION=1.0
 PROG="refreshstats"
 MYPID=`echo $$`
 WORKDIR=/tmp
@@ -55,7 +56,7 @@ usage()
 cat << EOF
 usage: $0 options
 
-This script refreshes user table statistics using vacuum analyze or just plain analyze.
+pg_refreshstats Version ${VERSION}.  This script refreshes user table statistics using vacuum analyze or just plain analyze.
 
 OPTIONS:
    -h      server name or Ip address
