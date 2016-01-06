@@ -1,19 +1,19 @@
 This script executes vacuum analyze or just analyze commands based on input parameters
 
-Inputs: 
--h <hostname or IP address> -d <database> -n <schema, optional> -p <PORT> -t <type> -u <db user, optional> 
--l <load threshold, optional> -w <max rows, optional> -c [vacuum analyze, optional] -r [dry run, optional] -v [verbose output, optional]
+Inputs: all fields are optional except database and type.
+-h <hostname or IP address> -d <database> -n <schema> -p <PORT> -t <type> -u <db user> 
+-l <load threshold> -w <max rows> -c [vacuum analyze] -r [dry run] -v [verbose output]
 
 TYPE values:
    * EXTENSIVE (all user tables in the database or schema will be refreshed)
    * SMART (only tables that need to be refreshed will be refreshed)
 
 Examples:
--- vacuum analyze for all user tables in the database
+-- vacuum analyze for all user tables in the database but only if load is less than 20% and rows < 1 mil
 ./pg_refreshstats.sh -h localhost -d test -p 5433 -t extensive -u postgres -l 20 -w 1000000 -c -v
-
--- smart analyze for all user tables in specific schema
-./pg_refreshstats.sh -h localhost -d test -n public -p 5433 -t smart -u postgres -l 20 -w 1000000 -v
+ 
+-- smart analyze for all user tables in specific schema, but only if load is less than 40% and rows < 1 mil
+./pg_refreshstats.sh -h localhost -d test -n public -p 5433 -t smart -u postgres -l 40 -w 1000000 -v
 
 Assumptions:
 1. db user defaults to postgres if not provided as parameter.
@@ -22,6 +22,8 @@ Assumptions:
 4. psql must be in the user's path
 5. action defaults to analyze unless option, -c, is specified, indicating to use vacuum analyze instead.
 6. Load detection assumes that you are running this script from the database host.
+7. SMART type will only consider tables whose pg_class.reltuples value is greater than zero. 
+  This value can be zero even if a few rows are in the table, because pg_class.reltuples is also a close estimate.
 
 SMART TYPE dictates a filter algorithm to determine what tables will qualify for the stats refresh.
 1. Refresh tables with no recent analyze or autovacuum_analyze in the last 30 days.
