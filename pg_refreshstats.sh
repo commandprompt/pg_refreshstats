@@ -8,7 +8,7 @@
 # This script executes vacuum analyze or just analyze commands based on input parameters
 #
 # Inputs: 
-# -h <hostname or IP address> -d <database> -n <schema, optional> -p <PORT> -t <type> -u <db user, optional> 
+# -h <hostname or IP address, optional> -d <database, optional> -n <schema, optional> -p <PORT, optional> -t <type> -u <db user, optional> 
 # -l <load threshold, optional> -w <max rows, optional> -c [vacuum analyze, optional] -r [dry run, optional] -v [verbose output, optional]
 # 
 # TYPE values:
@@ -29,6 +29,8 @@
 # 4. psql must be in the user's path
 # 5. action defaults to analyze unless option, -c, is specified
 # 6. Load detection assumes that you are running this script from the database host.
+# 7. SMART type will only consider tables whose pg_class.reltuples value is greater than zero. 
+#    This value can be zero even if a few rows are in the table, because pg_class.reltuples is also a close estimate.
 #
 # SMART TYPE dictates a filter algorithm to determine what tables will qualify for the stats refresh.
 # 1. Refresh tables with no recent analyze or autovacuum_analyze in the last 30 days.
@@ -59,17 +61,17 @@ usage: $0 options
 pg_refreshstats Version ${VERSION}.  This script refreshes user table statistics using vacuum analyze or just plain analyze.
 
 OPTIONS:
-   -h      server name or Ip address
-   -d      database name
-   -n      schema name (optional, excluded implies database-wide refresh)
-   -p      port
-   -u      db user (default, postgres)
+   -h      server name or Ip address, optional
+   -d      database name, required
+   -p      port, optional
+   -u      db user, optional
+   -n      schema name (optional, excluded implies database-wide refresh)   
    -t      type  (EXTENSIVE or SMART)
    -l      load threshold (optional) 
-   -w      max rows, defaults to 10 million (optional)
+   -w      max rows, defaults to 10 million, optional
    -c      vacuum analyze, instead of default, analyze (optional)
-   -r      dry run (optional)
-   -v      Verbose (optional)
+   -r      dry run, optional
+   -v      Verbose, optional
 EOF
 }
 
@@ -79,7 +81,7 @@ EOF
 SERVER=
 DATABASE=
 SCHEMA=
-USER=postgres
+USER=
 PORT=
 TYPE=
 VACUUM_ANALYZE=0
@@ -131,7 +133,7 @@ do
      esac
 done
 
-if [[ -z $SERVER ]] || [[ -z $DATABASE ]] || [[ -z $PORT ]] || [[ -z $TYPE ]]
+if [[ -z $DATABASE ]] || [[ -z $TYPE ]]
 then
      usage
      exit 1
@@ -141,11 +143,30 @@ echo "INFO  `date`: *** ${PROG} started. PID=$MYPID SERVER=$SERVER DATABASE=$DAT
 TODAY=`date +"%Y_%m_%d"`
 exec 2>&1
 
+TYPEU=`echo $TYPE | tr [a-z] [A-Z]`
+# setup connect clause
+if [ -z $SERVER ]; then
+    SERVER_CLAUSE=" "
+else
+    SERVER_CLAUSE=" -h ${SERVER} "
+fi
+
+if [ -z $USER ]; then
+    USER_CLAUSE=" "
+else
+    USER_CLAUSE=" -U ${USER} "
+fi
+
+if [ -z $PORT ]; then
+    PORT_CLAUSE=" "
+else
+    PORT_CLAUSE=" -p ${PORT} "
+fi
+
 ###################
 ### VALIDATIONS ###
 ###################
-TYPEU=`echo $TYPE | tr [a-z] [A-Z]`
-RC1=`psql -h $SERVER -U $USER -p $PORT -t -d $DATABASE -w -c "select version()"`
+RC1=`psql ${SERVER_CLAUSE} ${USER_CLAUSE} ${PORT_CLAUSE} -t -d $DATABASE -w -c "select version()"`
 RC2=$?
 if [[ ${VERBOSE} = 1 ]] ; then
     #echo "DEBUG `date`: *** Source DB: RC2=$RC2  RC1=$RC1"
@@ -157,7 +178,7 @@ if [[ ${RC2} -ne 0 ]] ; then
     exit 1
 fi
 
-if [ "$TYPEU" = "EXTENSIVE" ] || [ "$TYPE" = "SMART" ]; then    
+if [ "$TYPEU" = "EXTENSIVE" ] || [ "$TYPEU" = "SMART" ]; then    
     # nothing
     :
 else
@@ -195,7 +216,11 @@ if [[ ${LOWLOAD} -ne -1 ]] ; then
     LOAD=`echo "$LOAD15 $CPUS" | awk '{printf "%.2f \n", $1/$2*100}'`
     # round it
     LOADR=`echo ${LOAD} | awk '{printf("%d\n",$1 + 0.5)}'`
-    #echo "INFO  `date`: *** LOAD15=$LOAD15 CPUS=$CPUS LOAD=$LOADR."
+   
+    if [[ ${VERBOSE} = 1 ]] ; then
+        echo "INFO  `date`: *** LOAD15=$LOAD15 CPUS=$CPUS LOAD=$LOADR."
+    fi
+
     if [ "$LOADR" -lt "$LOWLOAD" ] ; then    
         #echo "INFO  `date`: *** LOAD15=$LOAD15 CPUS=$CPUS LOAD=$LOAD."
         echo "INFO  `date`: *** Low Load: ${LOADR}% is less than Load Threshold, ${LOWLOAD}%.  Proceeding with refreshstats commands..."
@@ -211,8 +236,7 @@ fi
 
 # Show user what tables will not be refreshed because their size exceeds Max rows.
 SQL="select n.nspname || '.' || c.relname from pg_namespace n, pg_class c, pg_tables t, pg_stat_user_tables u where t.schemaname = n.nspname and t.tablename = c.relname and c.relname = u.relname ${SCHEMA_CLAUSE} and n.nspname not in ('information_schema','pg_catalog') and c.reltuples > ${MAXROWS} order by n.nspname, c.relname"        
-
-RC1=`psql -h ${SERVER} -U ${USER} -p ${PORT} -d ${DATABASE} -t -c "${SQL}" > ${WORKFILE_DEFERRED}`
+RC1=`psql ${SERVER_CLAUSE} ${USER_CLAUSE} ${PORT_CLAUSE} -d ${DATABASE} -t -c "${SQL}" > ${WORKFILE_DEFERRED}`
 RC2=$?
 if [[ ${RC2} -ne 0 ]] ; then
     echo "ERROR `date`: *** Unable to extract refresh commands from database: $HOST $DATABASE RC2=$RC2"
@@ -231,12 +255,12 @@ if [ "$TYPEU" = "EXTENSIVE" ]; then
         echo "INFO  `date`: *** Extensive schema refresh in progress...."    
     fi
 
-    SQL="select '${STATM} VERBOSE ' || n.nspname || '.' || c.relname || ';' as ddl from pg_namespace n, pg_class c, pg_tables t, pg_stat_user_tables u where t.schemaname = n.nspname and t.tablename = c.relname and c.relname = u.relname ${SCHEMA_CLAUSE} and n.nspname not in ('information_schema','pg_catalog') and c.reltuples between 0 and ${MAXROWS} order by n.nspname, c.relname"  
+    SQL="select '${STATM} VERBOSE ' || n.nspname || '.' || c.relname || ';' as ddl from pg_namespace n, pg_class c, pg_tables t, pg_stat_user_tables u where t.schemaname = n.nspname and t.tablename = c.relname and c.relname = u.relname ${SCHEMA_CLAUSE} and n.nspname not in ('information_schema','pg_catalog') and c.reltuples between 1 and ${MAXROWS} order by n.nspname, c.relname"  
     if [[ $VERBOSE -eq 1 ]]; then
         echo "DEBUG `date`: *** SQL--> $SQL"
     fi
     
-    RC1=`psql -h ${SERVER} -U ${USER} -p ${PORT} -d ${DATABASE} -t -c "${SQL}" > ${WORKFILE}`
+    RC1=`psql ${SERVER_CLAUSE} ${USER_CLAUSE} ${PORT_CLAUSE} -d ${DATABASE} -t -c "${SQL}" > ${WORKFILE}`
     RC2=$?
     if [[ ${RC2} -ne 0 ]] ; then
         echo "ERROR `date`: *** Unable to extract refresh commands from database: $HOST $DATABASE RC2=$RC2"
@@ -254,7 +278,7 @@ if [ "$TYPEU" = "EXTENSIVE" ]; then
         fi
         # now execute the analyze commands in the file
         echo ""
-        RC1=`psql -h ${SERVER} -U ${USER} -p ${PORT} -d ${DATABASE} < ${WORKFILE}`
+        RC1=`psql ${SERVER_CLAUSE} ${USER_CLAUSE} ${PORT_CLAUSE} -d ${DATABASE} < ${WORKFILE}`
         RC2=$?
         echo ""
         if [[ ${RC2} -ne 0 ]] ; then
@@ -270,11 +294,11 @@ elif [ "$TYPEU" = "SMART" ]; then
         echo "INFO  `date`: *** Smart schema refresh in progress..."                
     fi
     
-    SQL="select '${STATM} ' || n.nspname || '.' || c.relname || ';' as ddl from pg_namespace n, pg_class c, pg_tables t, pg_stat_user_tables u where t.schemaname = n.nspname and t.tablename = c.relname and c.relname = u.relname ${SCHEMA_CLAUSE} and n.nspname not in ('information_schema','pg_catalog') and (((c.reltuples between 0 and ${MAXROWS} and round((u.n_live_tup / c.reltuples) * 100) < 50)) OR ((last_analyze is null and last_autoanalyze is null) or (now()::date  - last_analyze::date > 30 OR now()::date - last_autoanalyze::date > 30))) order by n.nspname, c.relname"
+    SQL="select '${STATM} ' || n.nspname || '.' || c.relname || ';' as ddl from pg_namespace n, pg_class c, pg_tables t, pg_stat_user_tables u where t.schemaname = n.nspname and t.tablename = c.relname and c.relname = u.relname ${SCHEMA_CLAUSE} and n.nspname not in ('information_schema','pg_catalog') and (((c.reltuples between 1 and ${MAXROWS} and round((u.n_live_tup / c.reltuples) * 100) < 50)) OR ((last_analyze is null and last_autoanalyze is null) or (now()::date  - last_analyze::date > 30 OR now()::date - last_autoanalyze::date > 30))) order by n.nspname, c.relname"
     if [[ $VERBOSE -eq 1 ]]; then
         echo "DEBUG `date`: *** SQL--> $SQL"
     fi
-    RC1=`psql -h ${SERVER} -U ${USER} -p ${PORT} -d ${DATABASE} -t -c "${SQL}" > ${WORKFILE}`
+    RC1=`psql ${SERVER_CLAUSE} ${USER_CLAUSE} ${PORT_CLAUSE} -d ${DATABASE} -t -c "${SQL}" > ${WORKFILE}`
     RC2=$?
     if [[ ${RC2} -ne 0 ]] ; then
         echo "ERROR `date`: *** Unable to extract refresh commands from database: $HOST $DATABASE RC2=$RC2"
@@ -292,7 +316,7 @@ elif [ "$TYPEU" = "SMART" ]; then
         fi        
         # now execute the analyze commands in the file
         echo ""
-        RC1=`psql -h ${SERVER} -U ${USER} -p ${PORT} -d ${DATABASE} < ${WORKFILE}`
+        RC1=`psql ${SERVER_CLAUSE} ${USER_CLAUSE} ${PORT_CLAUSE} -d ${DATABASE} < ${WORKFILE}`
         RC2=$?
         echo ""
         if [[ ${RC2} -ne 0 ]] ; then
