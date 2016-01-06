@@ -7,20 +7,20 @@
 # Description:
 # This script executes vacuum analyze or just analyze commands based on input parameters
 #
-# Inputs: 
-# -h <hostname or IP address, optional> -d <database, optional> -n <schema, optional> -p <PORT, optional> -t <type> -u <db user, optional> 
-# -l <load threshold, optional> -w <max rows, optional> -c [vacuum analyze, optional] -r [dry run, optional] -v [verbose output, optional]
+# Inputs: all fields are optional except database and type.
+# -h <hostname or IP address> -d <database> -n <schema> -p <PORT> -t <type> -u <db user> 
+# -l <load threshold> -w <max rows> -c [vacuum analyze] -r [dry run] -v [verbose output]
 # 
 # TYPE values:
 #    * EXTENSIVE (all user tables in the database or schema will be refreshed)
 #    * SMART (only tables that need to be refreshed will be refreshed)
 # 
 # Examples:
-# -- vacuum analyze for all user tables in the database
+# -- vacuum analyze for all user tables in the database but only if load is less than 20% and rows < 1 mil
 # ./pg_refreshstats.sh -h localhost -d test -p 5433 -t extensive -u postgres -l 20 -w 1000000 -c -v
 # 
-# -- smart analyze for all user tables in specific schema
-# ./pg_refreshstats.sh -h localhost -d test -n public -p 5433 -t smart -u postgres -l 20 -w 1000000 -v
+# -- smart analyze for all user tables in specific schema, but only if load is less than 40% and rows < 1 mil
+# ./pg_refreshstats.sh -h localhost -d test -n public -p 5433 -t smart -u postgres -l 40 -w 1000000 -v
 # 
 # Assumptions:
 # 1. db user defaults to postgres if not provided as parameter.
